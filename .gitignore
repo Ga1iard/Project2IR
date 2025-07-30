@@ -1,0 +1,12 @@
+# Ignorar carpeta data
+data/
+
+# Ignorar archivo .env
+.env
+
+# Ignorar carpetas de caché
+__pycache__/
+pycache_*/
+
+# Ignorar archivos .faiss
+*.faiss
