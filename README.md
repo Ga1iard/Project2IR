@@ -64,7 +64,7 @@ La aplicación permite ingresar texto, subir una imagen o ambos, y devuelve:
 - Pandas, NumPy, PIL, scikit-learn
 
 ## Notas finales
-El dataset específico utilizado para la ejecución del presente proyecto es **2014 Val Images** y **2014 Train/Val anotations** de COCO
+El dataset específico utilizado para la ejecución del presente proyecto es **2014 Val Images** y **2014 Train/Val anotations** de COCO.
 El proyecto **requiere de una GPU compatible con CUDA** para su ejecución.
 
 ## Integrantes (Grupo 4)
