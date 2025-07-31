@@ -1,6 +1,9 @@
 # Ignorar carpeta data
 data/
 
+# Ignorar carpeta de imágenes temporales
+dummy_images/
+
 # Ignorar archivo .env
 .env
 
