@@ -2,31 +2,20 @@ import gradio as gr
 import os
 from PIL import Image
 
-def launch_ui(df, index_mm, IMG_PATH, TOP_K, build_prompt, retrieve_by_text, retrieve_by_image, retrieve_by_text_and_image, client):
+# Función principal para lanzar la interfaz gráfica
+def launch_ui(df, index_mm, IMG_PATH, TOP_K, build_prompt, retrieve_by_text, retrieve_by_image, retrieve_by_text_and_image, client, generate_response_fn):
 
-    os.makedirs("dummy_images", exist_ok=True)  # carpeta temporal para imágenes
+    # Crear carpeta temporal para imágenes subidas
+    os.makedirs("dummy_images", exist_ok=True)
 
+    # Guardar la imagen cargada por el usuario como archivo temporal
     def save_temp_image(image_np):
         img = Image.fromarray(image_np.astype('uint8'), 'RGB')
         save_path = os.path.join("dummy_images", "temp_query_image.png")
         img.save(save_path)
         return save_path
 
-    def generate_response(prompt: str):
-        try:
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "Eres una aplicación de tipo Retrieval-Augmented Generation (RAG) que siempre responde en español."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=512,
-                temperature=0.2,
-            )
-            return completion.choices[0].message.content.strip()
-        except Exception as e:
-            return f"Error llamando al LLM: {e}"
-
+    # Lógica principal de recuperación: por texto, por imagen o por ambos
     def search_rag(query_text, query_image):
         if query_text and query_image is not None:
             image_path = save_temp_image(query_image)
@@ -39,67 +28,40 @@ def launch_ui(df, index_mm, IMG_PATH, TOP_K, build_prompt, retrieve_by_text, ret
         else:
             return "Escribe algo o sube una imagen", [], None, None
 
+        # Preparar resultados a mostrar
         resultados = []
         for idx in topk_idxs[0]:
             row = df.iloc[idx]
             resultados.append((os.path.join(IMG_PATH, row['file_name']), row['combined_caption']))
 
+        # Generar respuesta con el LLM a partir de los documentos recuperados
         retrieved_docs = [caption for _, caption in resultados]
-
         prompt = build_prompt(query_text or "", retrieved_docs)
-        response = generate_response(prompt)
+        response = generate_response_fn(prompt, client)  # <<<< usar función externa
 
         selected_img_path, selected_caption = resultados[0]
         return response, resultados, selected_img_path, selected_caption
 
-    def on_click_image(image_path):
-        file_name = os.path.basename(image_path)
-        caption = df[df['file_name'] == file_name]['combined_caption'].values[0]
-        return image_path, caption
+    # Manejador al seleccionar una imagen de la galería
+    def on_click_image(selected):
+        try:
+            if isinstance(selected, list):
+                image_path = selected[0]
+            else:
+                image_path = selected
 
-    with gr.Blocks(css="""
-        html, body, .gradio-container, .gr-blocks {
-            height: 100vh;
-            margin: 0;
-        }
-        body {
-            background-color: #121212;
-            color: #FFFFFF;
-            font-family: 'Segoe UI', sans-serif;
-        }
-        .search-bar {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            background: #1e1e1e;
-            border-radius: 15px;
-            padding: 10px;
-            height: 100%;
-            gap: 10px;
-        }
-        .response-box-container {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-        .response-box textarea {
-            flex: 1;
-            resize: none !important;
-        }
-        .image-preview {
-            flex-grow: 1;
-            min-height: 150px;
-        }
-        .image-preview img {
-            height: 100% !important;
-            width: 100% !important;
-            object-fit: contain;
-            border-radius: 8px;
-        }
-    """) as demo:
+            file_name = os.path.basename(image_path)
+            caption = df[df['file_name'] == file_name]['combined_caption'].values[0]
+            return image_path, caption
+        except Exception as e:
+            print(f"Error en el on click image: {e}")
+
+    # Construcción de la interfaz con Gradio Blocks
+    with gr.Blocks(css="""...""") as demo:
         query_text = gr.State("")
         uploaded_image = gr.State(None)
 
+        # Zona de entrada de texto e imagen
         with gr.Row(equal_height=True):
             with gr.Column(scale=2):
                 with gr.Column(elem_classes=["search-bar"]):
@@ -113,6 +75,7 @@ def launch_ui(df, index_mm, IMG_PATH, TOP_K, build_prompt, retrieve_by_text, ret
                     )
                     search_btn = gr.Button("🔍")
 
+            # Zona de respuesta del modelo
             with gr.Column(scale=2, elem_classes=["response-box-container"]):
                 response_box = gr.Textbox(
                     label="Respuesta del LLM",
@@ -121,20 +84,25 @@ def launch_ui(df, index_mm, IMG_PATH, TOP_K, build_prompt, retrieve_by_text, ret
                     elem_classes=["response-box"]
                 )
 
+        # Galería para mostrar resultados (top-k imágenes)
         with gr.Row():
             with gr.Column(scale=12):
                 gallery = gr.Gallery(label="Top-K Imágenes", columns=5, rows=1, height="auto", interactive=False)
 
+        # Función que ejecuta la búsqueda y genera la respuesta
         def submit(query, image):
             response, topk, selected_path, caption = search_rag(query, image)
             return response, topk
 
+        # Asignar función al botón de búsqueda
         search_btn.click(
             fn=submit,
             inputs=[input_text, img_upload],
             outputs=[response_box, gallery]
         )
 
+        # Asignar función al seleccionar imagen de la galería
         gallery.select(fn=on_click_image, inputs=[gallery], outputs=[])
 
+    # Ejecutar la aplicación
     demo.launch()
