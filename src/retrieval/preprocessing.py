@@ -4,7 +4,7 @@ from nltk.tokenize import regexp_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
-# Descarga silenciosa de los recursos necesarios para tokenización, lematización y stopwords
+# Descarga de los recursos necesarios para tokenización, lematización y stopwords
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
 nltk.download('wordnet', quiet=True)

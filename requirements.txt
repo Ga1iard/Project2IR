@@ -1,0 +1,11 @@
+numpy
+pandas
+openai
+python-dotenv
+gradio
+pillow
+sentence-transformers
+torch
+nltk
+faiss-cpu
+tqdm
